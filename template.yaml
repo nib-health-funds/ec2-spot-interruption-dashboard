@@ -1017,98 +1017,99 @@ Resources:
   # CloudWatch Dashboards ----------------------------------
   
   SpotInterruptionDashboard:
-  Type: AWS::CloudWatch::Dashboard
-  Properties: 
-    DashboardBody: 
-      !Sub 
-        - |-     
-          {
-            "start": "-PT3H",
-            "periodOverride": "inherit",
-            "widgets": [  
-              {
-                "type":"metric",
-                "width":24,
-                "height":3,
-                "properties":{
-                  "metrics":[
-                    [ { "expression": "SUM(SEARCH('{EC2SpotDashboard,AvailabilityZone} MetricName=\\\"Launches\\\"', 'Sum', 300))", "id": "e1", "label": "Spot Launches" } ],
-                    [ { "expression": "SUM(SEARCH('{EC2SpotDashboard,AvailabilityZone} MetricName=\\\"Interruptions\\\"', 'Sum', 300))", "id": "e2", "label": "Spot Interruptions" } ],
-                    [ { "expression": "100*(e2/e1)", "id": "e3", "label": "Interruption Rate %" } ]
-                  ],
-                  "period":86400,
-                  "stat":"Sum",
-                  "view":"singleValue",
-                  "region":"${DeployedRegion}",
-                  "title":"Overview"
+    Type: AWS::CloudWatch::Dashboard
+    Properties: 
+      DashboardBody: 
+        !Sub 
+          - |-     
+            {
+              "start": "-PT3H",
+              "periodOverride": "inherit",
+              "widgets": [  
+                {
+                  "type":"metric",
+                  "width":24,
+                  "height":3,
+                  "properties":{
+                    "metrics":[
+                      [ { "expression": "SUM(SEARCH('{EC2SpotDashboard,AvailabilityZone} MetricName=\\\"Launches\\\"', 'Sum', 300))", "id": "e1", "label": "Spot Launches" } ],
+                      [ { "expression": "SUM(SEARCH('{EC2SpotDashboard,AvailabilityZone} MetricName=\\\"Interruptions\\\"', 'Sum', 300))", "id": "e2", "label": "Spot Interruptions" } ],
+                      [ { "expression": "100*(e2/e1)", "id": "e3", "label": "Interruption Rate %" } ]
+                    ],
+                    "period":86400,
+                    "stat":"Sum",
+                    "view":"singleValue",
+                    "region":"${DeployedRegion}",
+                    "title":"Overview"
+                  }
+                },
+                {
+                  "type":"metric",
+                  "width":24,
+                  "height":6,
+                  "properties":{
+                    "metrics":[
+                      [ { "expression": "SEARCH('{EC2SpotDashboard,AvailabilityZone} MetricName=\\\"Interruptions\\\"', 'Sum', 300)", "id": "e1" } ]
+                    ],
+                    "period":86400,
+                    "stat":"Sum",
+                    "view":"singleValue",
+                    "region":"${DeployedRegion}",
+                    "title":"Spot Interruption Counts - By Availability Zone"
+                  }
+                },
+                {
+                  "type":"metric",
+                  "width":24,
+                  "height":3,
+                  "properties":{
+                    "metrics":[
+                      [ { "expression": "SUM(SEARCH('{FargateSpotDashboard,AvailabilityZone} MetricName=\\\"Launches\\\"', 'Sum', 300))", "id": "e1", "label": "Fargate Spot Launches" } ],
+                      [ { "expression": "SUM(SEARCH('{FargateSpotDashboard,AvailabilityZone} MetricName=\\\"Interruptions\\\"', 'Sum', 300))", "id": "e2", "label": "Fargate Spot Interruptions" } ],
+                      [ { "expression": "100*(e2/e1)", "id": "e3", "label": "Fargate Spot Interruption Rate %" } ]
+                    ],
+                    "period":86400,
+                    "stat":"Sum",
+                    "view":"singleValue",
+                    "region":"${DeployedRegion}",
+                    "title":"Fargate Spot Overview"
+                  }
+                },
+                {
+                  "type":"metric",
+                  "width":24,
+                  "height":6,
+                  "properties":{
+                    "metrics":[
+                      [ { "expression": "SEARCH('{FargateSpotDashboard,AvailabilityZone} MetricName=\\\"Interruptions\\\"', 'Sum', 300)", "id": "e1" } ]
+                    ],
+                    "period":86400,
+                    "stat":"Sum",
+                    "view":"singleValue",
+                    "region":"${DeployedRegion}",
+                    "title":"Fargate Spot Interruption Counts - By Availability Zone"
+                  }
+                },
+                {
+                  "type":"metric",
+                  "width":24,
+                  "height":6,
+                  "properties":{
+                    "metrics":[
+                      [ { "expression": "SEARCH('{FargateSpotDashboard,TaskDefinition} MetricName=\\\"Interruptions\\\"', 'Sum', 300)", "id": "e1" } ]
+                    ],
+                    "period":86400,
+                    "stat":"Sum",
+                    "view":"singleValue",
+                    "region":"${DeployedRegion}",
+                    "title":"Fargate Spot Interruption Counts - By Task Definition"
+                  }
                 }
-              },
-              {
-                "type":"metric",
-                "width":24,
-                "height":6,
-                "properties":{
-                  "metrics":[
-                    [ { "expression": "SEARCH('{EC2SpotDashboard,AvailabilityZone} MetricName=\\\"Interruptions\\\"', 'Sum', 300)", "id": "e1" } ]
-                  ],
-                  "period":86400,
-                  "stat":"Sum",
-                  "view":"singleValue",
-                  "region":"${DeployedRegion}",
-                  "title":"Spot Interruption Counts - By Availability Zone"
-                }
-              },
-              {
-                "type":"metric",
-                "width":24,
-                "height":3,
-                "properties":{
-                  "metrics":[
-                    [ { "expression": "SUM(SEARCH('{FargateSpotDashboard,AvailabilityZone} MetricName=\\\"Launches\\\"', 'Sum', 300))", "id": "e1", "label": "Fargate Spot Launches" } ],
-                    [ { "expression": "SUM(SEARCH('{FargateSpotDashboard,AvailabilityZone} MetricName=\\\"Interruptions\\\"', 'Sum', 300))", "id": "e2", "label": "Fargate Spot Interruptions" } ],
-                    [ { "expression": "100*(e2/e1)", "id": "e3", "label": "Fargate Spot Interruption Rate %" } ]
-                  ],
-                  "period":86400,
-                  "stat":"Sum",
-                  "view":"singleValue",
-                  "region":"${DeployedRegion}",
-                  "title":"Fargate Spot Overview"
-                }
-              },
-              {
-                "type":"metric",
-                "width":24,
-                "height":6,
-                "properties":{
-                  "metrics":[
-                    [ { "expression": "SEARCH('{FargateSpotDashboard,AvailabilityZone} MetricName=\\\"Interruptions\\\"', 'Sum', 300)", "id": "e1" } ]
-                  ],
-                  "period":86400,
-                  "stat":"Sum",
-                  "view":"singleValue",
-                  "region":"${DeployedRegion}",
-                  "title":"Fargate Spot Interruption Counts - By Availability Zone"
-                }
-              },
-              {
-                "type":"metric",
-                "width":24,
-                "height":6,
-                "properties":{
-                  "metrics":[
-                    [ { "expression": "SEARCH('{FargateSpotDashboard,TaskDefinition} MetricName=\\\"Interruptions\\\"', 'Sum', 300)", "id": "e1" } ]
-                  ],
-                  "period":86400,
-                  "stat":"Sum",
-                  "view":"singleValue",
-                  "region":"${DeployedRegion}",
-                  "title":"Fargate Spot Interruption Counts - By Task Definition"
-                }
-              }
-            ]
-          }
-  DependsOn: InstanceMetadataGlueTable
-
+              ]
+            }
+          - { 
+              DeployedRegion: !Ref "AWS::Region",
+            }
 
   # ------------------------------------------------------
   
@@ -1122,7 +1123,6 @@ Resources:
             Description: "Database for Instance Metadata"
             
   InstanceMetadataGlueTable:
-    DependsOn: InstanceMetadataGlueDatabase
     Type: AWS::Glue::Table
     Properties:
       CatalogId: !Ref AWS::AccountId
