@@ -29,15 +29,30 @@ def lambda_handler(event, context):
 
     logger.info(event)
 
+    # Check if the event is for EC2 Spot or Fargate Spot
+    if 'instance-id' in event['detail']:
+        # EC2 Spot interruption event
+        instance_id = event['detail']['instance-id']
+        instance_action = event['detail']['instance-action']
+        interruption_type = 'spot-interruption'
+    elif 'taskArn' in event['detail']:
+        # Fargate Spot interruption event
+        instance_id = event['detail']['taskArn']
+        instance_action = event['detail']['stopCode']
+        interruption_type = 'fargate-spot-interruption'
+    else:
+        logger.info('Unsupported event type')
+        return
+
     # Transform CloudWatch Event
     item = {
-        'InstanceId': event['detail']['instance-id'],
+        'InstanceId': instance_id,
         'Region': event['region'],
         'LastEventTime': event['time'],
-        'LastEventType': 'spot-interruption',
+        'LastEventType': interruption_type,
         'State': 'none',
         'Interrupted': True,
-        'InterruptedInstanceAction': event['detail']['instance-action'],
+        'InterruptedInstanceAction': instance_action,
         'InterruptionTime': event['time']
     }
 

@@ -26,8 +26,15 @@ logger.setLevel(logging.INFO)
 def enrich_instance_metadata(instance):
 
     # Extend this function to enrich Instance Metadata
+    if instance['type'] == 'EC2':
+        # Handle EC2 instances
+        logger.info(instance)
+    elif instance['type'] == 'Fargate':
+        # Handle Fargate instances
+        logger.info(instance)
+    else:
+        logger.error(f"Unknown instance type: {instance['type']}")
 
-    logger.info(instance)
     return instance
 
 def lambda_handler(event, context):
@@ -41,4 +48,4 @@ def lambda_handler(event, context):
     logger.info('Execution Complete')
     return {
         'instance': enriched_instance
-    }
+    } 

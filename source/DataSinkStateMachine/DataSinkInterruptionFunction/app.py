@@ -81,6 +81,31 @@ def put_availabilityzone_metric(instance, metrics):
 
     return
 
+@metric_scope
+def put_faragate_spot_metric(instance, metrics):
+
+    try:
+        metrics.set_namespace("EC2SpotDashboard")
+        metrics.set_dimensions(
+            { 
+                "InstanceType": instance['InstanceType'],
+                "AvailabilityZone": instance['AvailabilityZone']
+            })
+        metrics.put_metric("FaragateSpotInterruptions", 1, "Count")
+        metrics.set_property("Region", instance['Region'])
+        metrics.set_property("AvailabilityZone", instance['AvailabilityZone'])
+        metrics.set_property("InstanceType", instance['InstanceType'])
+
+        for tag in instance['Tags']:
+            metrics.set_property(tag['Key'], tag['Value'])
+
+    except ClientError as e:
+        message = 'Error sending CloudWatch Metric: {}'.format(e)
+        logger.info(message)
+        raise Exception(message)
+    
+    return
+
 def lambda_handler(event, context):
 
     logger.info(event)
@@ -88,6 +113,7 @@ def lambda_handler(event, context):
     instance = event['instance']
     put_instance_metric(instance)
     put_availabilityzone_metric(instance)
+    put_faragate_spot_metric(instance)
 
     # End
     logger.info('Execution Complete')

@@ -50,7 +50,25 @@ def lambda_handler(event, context):
                             response = stepfunctions.start_execution(
                                 stateMachineArn=data_sink_state_machine_arn,
                                 input=json.dumps(execution_input)
-                                )
+                            )
+                            logger.info('Execution Response: {}'.format(response))
+                        except Exception as e:
+                            message = 'Error executing State Machine: {}'.format(e)
+                            logger.info(message)
+                            raise Exception(message)
+                    
+                    elif item['LastEventType']['S'] == 'fargate-spot-interruption':
+                        # Perform the same actions as EC2 for Fargate Spot interruption
+                        execution_input = {
+                            'instance': dynamodb_json.loads(item)
+                        }
+                        
+                        try:
+                            logger.info('Attempting to Execute State Machine: {}'.format(data_sink_state_machine_arn))
+                            response = stepfunctions.start_execution(
+                                stateMachineArn=data_sink_state_machine_arn,
+                                input=json.dumps(execution_input)
+                            )
                             logger.info('Execution Response: {}'.format(response))
                         except Exception as e:
                             message = 'Error executing State Machine: {}'.format(e)

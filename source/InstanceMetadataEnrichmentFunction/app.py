@@ -24,8 +24,10 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 instance_metadata_table = boto3.resource('dynamodb').Table(os.environ['INSTANCE_METADATA_TABLE'])
+task_metadata_table = boto3.resource('dynamodb').Table(os.environ['TASK_METADATA_TABLE'])
 
 ec2 = boto3.client('ec2')
+ecs = boto3.client('ecs')
 
 def paginate(method, **kwargs):
     client = method.__self__
@@ -54,32 +56,54 @@ def describe_instances(instance_ids):
 
     return described_instances
 
+def describe_task_definitions(task_definition_arns):
+    described_task_definitions = []
+
+    response = ecs.describe_task_definition(taskDefinition=task_definition_arns)
+
+    logger.info(response)
+
+    for task_definition in response['taskDefinitions']:
+        described_task_definitions.append(task_definition)
+
+    return described_task_definitions
+
 def lambda_handler(event, context):
 
     logger.info(event)
 
     instance_ids = []
+    task_definition_arns = []
     described_instances = []
+    described_task_definitions = []
 
-    # Get Inserted Instances
+    # Get Inserted Instances and Task Definitions
     for record in event['Records']:
         if record['eventName'] == 'INSERT':
             item = record['dynamodb']['NewImage']
-            instance_id = item['InstanceId']['S']
-            instance_ids.append(instance_id)
-            logger.info(item)
+            if 'InstanceId' in item:
+                instance_id = item['InstanceId']['S']
+                instance_ids.append(instance_id)
+                logger.info(item)
+            elif 'TaskDefinitionArn' in item:
+                task_definition_arn = item['TaskDefinitionArn']['S']
+                task_definition_arns.append(task_definition_arn)
+                logger.info(item)
 
     # Describe Instances
     if len(instance_ids) > 0:
         described_instances = describe_instances(instance_ids)
         logger.info(described_instances)
 
-    # Update Instance Records With Metadata
+    # Describe Task Definitions
+    if len(task_definition_arns) > 0:
+        described_task_definitions = describe_task_definitions(task_definition_arns)
+        logger.info(described_task_definitions)
 
+    # Update Instance Records With Metadata
     for instance in described_instances:
         logger.info(instance)
         try:
-
             item = {
                 'InstanceId': instance['InstanceId'],
                 'InstanceType': instance['InstanceType'],
@@ -94,13 +118,13 @@ def lambda_handler(event, context):
             else:
                 item['InstanceLifecycle'] = 'on-demand'
 
-            response=instance_metadata_table.update_item(
+            response = instance_metadata_table.update_item(
                 Key={
                     'InstanceId': item['InstanceId']
                 },
                 UpdateExpression="SET #InstanceType = :InstanceType, #InstanceLifecycle = :InstanceLifecycle, #AvailabilityZone = :AvailabilityZone, #Tags = :Tags, #InstanceMetadataEnriched = :InstanceMetadataEnriched",
                 ExpressionAttributeNames={
-                    '#InstanceType' : 'InstanceType',
+                    '#InstanceType': 'InstanceType',
                     '#InstanceLifecycle': 'InstanceLifecycle',
                     '#AvailabilityZone': 'AvailabilityZone',
                     '#Tags': 'Tags',
@@ -112,7 +136,7 @@ def lambda_handler(event, context):
                     ':AvailabilityZone': item['AvailabilityZone'],
                     ':Tags': item['Tags'],
                     ':InstanceMetadataEnriched': item['InstanceMetadataEnriched']
-                    },
+                },
                 ReturnValues="NONE"
             )
 
@@ -121,7 +145,42 @@ def lambda_handler(event, context):
             message = 'Error updating instances in DynamoDB: {}'.format(e)
             logger.info(message)
             raise Exception(message)
-            
+
+    # Update Task Records With Metadata
+    for task_definition in described_task_definitions:
+        logger.info(task_definition)
+        try:
+            item = {
+                'TaskDefinitionArn': task_definition['taskDefinitionArn'],
+                'ContainerDefinitions': task_definition['containerDefinitions'],
+                'Tags': task_definition['tags'],
+                'TaskMetadataEnriched': True
+            }
+
+            response = task_metadata_table.update_item(
+                Key={
+                    'TaskDefinitionArn': item['TaskDefinitionArn']
+                },
+                UpdateExpression="SET #ContainerDefinitions = :ContainerDefinitions, #Tags = :Tags, #TaskMetadataEnriched = :TaskMetadataEnriched",
+                ExpressionAttributeNames={
+                    '#ContainerDefinitions': 'ContainerDefinitions',
+                    '#Tags': 'Tags',
+                    '#TaskMetadataEnriched': 'TaskMetadataEnriched'
+                },
+                ExpressionAttributeValues={
+                    ':ContainerDefinitions': item['ContainerDefinitions'],
+                    ':Tags': item['Tags'],
+                    ':TaskMetadataEnriched': item['TaskMetadataEnriched']
+                },
+                ReturnValues="NONE"
+            )
+
+            logger.info(response)
+        except ClientError as e:
+            message = 'Error updating task definitions in DynamoDB: {}'.format(e)
+            logger.info(message)
+            raise Exception(message)
+
     # End
     logger.info('Execution Complete')
     return

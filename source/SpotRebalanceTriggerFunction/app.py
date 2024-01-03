@@ -25,8 +25,44 @@ logger.setLevel(logging.INFO)
 
 instance_metadata_table = boto3.resource('dynamodb').Table(os.environ['INSTANCE_METADATA_TABLE'])
 
-def lambda_handler(event, context):
+def update_instance_metadata(item):
+    try:
+        response = instance_metadata_table.update_item(
+            Key={
+                'InstanceId': item['InstanceId']
+            },
+            UpdateExpression="SET #Region = :Region, #LastEventTime = :LastEventTime, #LastEventType = :LastEventType, #RebalanceRecommended = :RebalanceRecommended, #RebalanceRecommendationTime = :RebalanceRecommendationTime, #EventHistory = list_append(if_not_exists(#EventHistory, :empty_list), :EventHistory)",
+            ExpressionAttributeNames={
+                '#Region': 'Region',
+                '#LastEventTime': 'LastEventTime',
+                '#LastEventType': 'LastEventType',
+                '#RebalanceRecommended': 'RebalanceRecommended',
+                '#RebalanceRecommendationTime': 'RebalanceRecommendationTime',
+                '#EventHistory': 'EventHistory'
+            },
+            ExpressionAttributeValues={
+                ':Region': item['Region'],
+                ':LastEventTime': item['LastEventTime'],
+                ':LastEventType': item['LastEventType'],
+                ':RebalanceRecommended': item['RebalanceRecommended'],
+                ':RebalanceRecommendationTime': item['RebalanceRecommendationTime'],
+                ':EventHistory': [{
+                    "Name": item['LastEventType'],
+                    "Time": item['LastEventTime'],
+                    "State": item['State']
+                }],
+                ":empty_list": []
+            },
+            ReturnValues="NONE"
+        )
 
+        logger.info(response)
+    except ClientError as e:
+        message = 'Error updating instance in DynamoDB: {}'.format(e)
+        logger.info(message)
+        raise Exception(message)
+
+def handle_ec2_event(event):
     logger.info(event)
 
     # Transform CloudWatch Event
@@ -43,42 +79,40 @@ def lambda_handler(event, context):
     logger.info(item)
 
     # Commit to DynamoDB
-    try:
-        response=instance_metadata_table.update_item(
-            Key={
-                'InstanceId': item['InstanceId']
-            },
-            UpdateExpression="SET #Region = :Region, #LastEventTime = :LastEventTime, #LastEventType = :LastEventType, #RebalanceRecommended = :RebalanceRecommended, #RebalanceRecommendationTime = :RebalanceRecommendationTime, #EventHistory = list_append(if_not_exists(#EventHistory, :empty_list), :EventHistory)",
-            ExpressionAttributeNames={
-                '#Region' : 'Region',
-                '#LastEventTime' : 'LastEventTime',
-                '#LastEventType' : 'LastEventType',
-                '#RebalanceRecommended' : 'RebalanceRecommended',
-                '#RebalanceRecommendationTime' : 'RebalanceRecommendationTime',
-                '#EventHistory' : 'EventHistory'
-            },
-            ExpressionAttributeValues={
-                ':Region': item['Region'],
-                ':LastEventTime': item['LastEventTime'],
-                ':LastEventType': item['LastEventType'],
-                ':RebalanceRecommended': item['RebalanceRecommended'],
-                ':RebalanceRecommendationTime': item['RebalanceRecommendationTime'],
-                ':EventHistory': [{ 
-                    "Name":  item['LastEventType'], 
-                    "Time": item['LastEventTime'],
-                    "State": item['State']
-                }],
-                ":empty_list": []
-                },
-            ReturnValues="NONE"
-        )
+    update_instance_metadata(item)
 
-        logger.info(response)
-    except ClientError as e:
-        message = 'Error updating instance in DynamoDB: {}'.format(e)
-        logger.info(message)
-        raise Exception(message)
-
-    # End
     logger.info('Execution Complete')
+
+def handle_fargate_event(event):
+    logger.info(event)
+
+    # Transform CloudWatch Event
+    item = {
+        'TaskArn': event['detail']['taskArn'],
+        'Region': event['region'],
+        'LastEventTime': event['time'],
+        'LastEventType': 'rebalance-recommendation',
+        'State': 'none',
+        'RebalanceRecommended': True,
+        'RebalanceRecommendationTime': event['time']
+    }
+
+    logger.info(item)
+
+    # Commit to DynamoDB
+    update_instance_metadata(item)
+
+    logger.info('Execution Complete')
+
+def lambda_handler(event, context):
+    event_source = event['source']
+    
+    if event_source == 'aws.ec2':
+        handle_ec2_event(event)
+    elif event_source == 'aws.fargate':
+        handle_fargate_event(event)
+    else:
+        logger.info('Unsupported event source: {}'.format(event_source))
+        return
+
     return

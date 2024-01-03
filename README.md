@@ -1,3 +1,6 @@
+# Modified ec2-spot-interruption-dashboard with Fargate Spot
+> This is a modified version of the ec2-spot-interruption-dashboard project provided by AWS. We have extended the functionality to include Fargate Spot, allowing you to track interruptions and visualize them using the existing CloudWatch Dashboard and Amazon Athena.
+
 # ec2-spot-interruption-dashboard
 
 This is a sample solution for logging EC2 Spot Instance Interruptions, storing them in CloudWatch and S3, and visualizing them with a CloudWatch Dashboard and Amazon Athena.

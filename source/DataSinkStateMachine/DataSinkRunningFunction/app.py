@@ -81,18 +81,49 @@ def put_availabilityzone_metric(instance, metrics):
 
     return
 
+@metric_scope
+def put_fargate_metric(task, metrics):
+
+    try:
+        metrics.set_namespace("EC2SpotDashboard")
+        metrics.set_dimensions(
+            { 
+                "TaskDefinitionArn": task['TaskDefinitionArn']
+            })
+        metrics.put_metric("Launches", 1, "Count")
+        metrics.set_property("Region", task['Region'])
+        metrics.set_property("ClusterArn", task['ClusterArn'])
+        metrics.set_property("TaskDefinitionArn", task['TaskDefinitionArn'])
+
+        for tag in task['Tags']:
+            metrics.set_property(tag['Key'], tag['Value'])
+
+    except ClientError as e:
+        message = 'Error sending CloudWatch Metric: {}'.format(e)
+        logger.info(message)
+        raise Exception(message)
+
+    return
+
 def lambda_handler(event, context):
 
     logger.info(event)
 
-    instance = event['instance']
-
-    if instance['InstanceLifecycle'] == "spot":
-        logger.info("Instance is a Spot Instance, sending CloudWatch Metrics")
-        put_instance_metric(instance)
-        put_availabilityzone_metric(instance)
-    else:
-        logger.info("Instance is an On-Demand Instance, skipping sending CloudWatch Metrics")
+    if 'instance' in event:
+        instance = event['instance']
+        if instance['InstanceLifecycle'] == "spot":
+            logger.info("Instance is a Spot Instance, sending CloudWatch Metrics")
+            put_instance_metric(instance)
+            put_availabilityzone_metric(instance)
+        else:
+            logger.info("Instance is an On-Demand Instance, skipping sending CloudWatch Metrics")
+    elif 'task' in event:
+        task = event['task']
+        if task['LaunchType'] == "FARGATE_SPOT":
+            logger.info("Task is a Fargate Spot Task, sending CloudWatch Metrics")
+            put_fargate_metric(task)
+        else:
+            logger.info("Task is not a Fargate Spot Task, skipping sending CloudWatch Metrics")
 
     # End
     logger.info('Execution Complete')

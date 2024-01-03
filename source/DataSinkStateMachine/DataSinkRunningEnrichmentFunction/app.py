@@ -26,6 +26,16 @@ logger.setLevel(logging.INFO)
 def enrich_instance_metadata(instance):
 
     # Extend this function to enrich Instance Metadata
+    if instance['type'] == 'EC2':
+        # Handle EC2 instances
+        logger.info('Enriching EC2 instance metadata')
+        # Add your code to enrich EC2 instance metadata here
+    elif instance['type'] == 'Fargate':
+        # Handle Fargate instances
+        logger.info('Enriching Fargate instance metadata')
+        # Add your code to enrich Fargate instance metadata here
+    else:
+        logger.info('Unknown instance type')
 
     logger.info(instance)
     return instance

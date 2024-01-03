@@ -26,34 +26,49 @@ logger.setLevel(logging.INFO)
 firehose = boto3.client('firehose')
 
 instance_metadata_stream = os.environ['INSTANCE_METADATA_STREAM']
+faragate_spot_stream = os.environ['FARAGATE_SPOT_STREAM']
 
 def sink_instance_data_to_firehose(instance):
-
     try:
         # Send Event to Firehose
         response = firehose.put_record(
             DeliveryStreamName=instance_metadata_stream,
             Record={
-                'Data': json.dumps(instance)+"\n"
+                'Data': json.dumps(instance) + "\n"
             }
         )
         logger.info(response)
         return instance
-
     except ClientError as e:
         message = 'Error sending instance data to Kinesis Firehose: {}'.format(e)
         logger.info(message)
         raise Exception(message)
 
-    return
+def sink_faragate_spot_data_to_firehose(faragate_spot):
+    try:
+        # Send Event to Firehose
+        response = firehose.put_record(
+            DeliveryStreamName=faragate_spot_stream,
+            Record={
+                'Data': json.dumps(faragate_spot) + "\n"
+            }
+        )
+        logger.info(response)
+        return faragate_spot
+    except ClientError as e:
+        message = 'Error sending Faragate Spot data to Kinesis Firehose: {}'.format(e)
+        logger.info(message)
+        raise Exception(message)
 
 def lambda_handler(event, context):
-
     logger.info(event)
 
     instance = event['instance']
+    faragate_spot = event['faragate_spot']
+
     sink_instance_data_to_firehose(instance)
+    sink_faragate_spot_data_to_firehose(faragate_spot)
 
     # End
     logger.info('Execution Complete')
-    return
+    return    sink_instance_data_to_firehose(instance)
